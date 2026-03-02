@@ -27,8 +27,8 @@ if [ ! -d "TRELLIS" ]; then
     echo "Cloning TRELLIS (original)..."
     git clone --recurse-submodules https://github.com/microsoft/TRELLIS.git
     cd TRELLIS
-    pip install -r requirements-torch.txt
-    pip install -r requirements-other.txt
+    echo "Installing TRELLIS dependencies via setup.sh..."
+    bash setup.sh --basic --xformers --flash-attn --diffoctreerast --vox2seq --spconv --kaolin --nvdiffrast
     cd ..
 else
     echo "TRELLIS already cloned."
@@ -37,11 +37,9 @@ fi
 if [ ! -d "TRELLIS.2" ]; then
     echo "Cloning TRELLIS.2..."
     git clone --recurse-submodules https://github.com/microsoft/TRELLIS.2.git
-    # Requirements logic varies, checking if setup.sh/requirements exist and executing
     cd TRELLIS.2
-    if [ -f "requirements.txt" ]; then
-        pip install -r requirements.txt
-    fi
+    echo "Installing TRELLIS.2 dependencies via setup.sh..."
+    bash setup.sh --basic --flash-attn --cumesh --o-voxel --flexgemm --nvdiffrast --nvdiffrec
     cd ..
 else
     echo "TRELLIS.2 already cloned."
@@ -49,3 +47,4 @@ fi
 cd ..
 
 echo "Setup complete. You can now start the API with 'make start'."
+
