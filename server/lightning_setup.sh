@@ -60,9 +60,10 @@ pip install pillow-simd 2>/dev/null || echo "Warning: pillow-simd install failed
 # which serves as a drop-in replacement. No need for xformers.
 echo "Skipping xformers (PyTorch 2.8+ has built-in SDPA attention)."
 
-# --- flash-attn (needs --no-build-isolation to find torch) ---
+# --- flash-attn (prebuilt wheel — pip build fails with cross-device link error on Lightning) ---
 echo "Installing flash-attn..."
-pip install flash-attn --no-build-isolation || echo "Warning: flash-attn install failed. SDPA will be used as fallback."
+pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl \
+    || echo "Warning: flash-attn install failed. SDPA will be used as fallback."
 
 # --- nvdiffrast (needs --no-build-isolation) ---
 echo "Installing nvdiffrast..."
