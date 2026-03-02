@@ -13,15 +13,40 @@ This repository natively supports Linux (Ubuntu) on the server side and Windows 
 
 ### 1. Server-Side Setup
 
-SSH into your remote GPU server and navigate to the `server/` directory:
+There are two ways to deploy and test the server code:
 
-```bash
-cd server/
-make setup_and_start
+#### **Option A: Automated Deployment (Recommended for updates)**
+From your local Windows machine, run the PowerShell script to automatically copy the `server/` directory and run the initialization and tests over SSH:
+```powershell
+.\local\deploy_and_test.ps1 -Username your_user -ServerAddress your_ip
 ```
 
-This will automatically create a python virtual environment, install FastAPI and dependencies, and start the inference API on port `8000`.
+#### **Option B: Manual SSH Deployment (Recommended for first-time installation)**
+Because installing PyTorch and compiling TRELLIS dependencies can take time and sometimes encounter OS-level issues (like missing gcc), it is often better to run the setup interactively so you can see the compiler logs:
 
+1. Copy the `server/` directory to your remote Linux machine (via `scp` or `git pull`).
+2. SSH into your remote GPU server and navigate to the `server/` directory:
+```bash
+cd server/
+make setup
+```
+
+#### **Run Quality Assurance Tests**
+Once setup is complete (either manually or via the script), verify the installation by running the QA scripts on the server:
+
+```bash
+# Verifies PyTorch, CUDA (requires 16GB+ VRAM), and Trellis imports
+.venv/bin/python qa_setup.py
+
+# Verifies model instantiation (catches Out-Of-Memory errors)
+.venv/bin/python qa_inference.py
+```
+
+#### **Start the Server**
+Once QA passes, start the inference API on port `8000`:
+```bash
+make start
+```
 *Note: You may customize the port by setting `API_PORT` before running `make start`.*
 
 ### 2. Local Port Forwarding (Windows)

@@ -19,4 +19,33 @@ source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
+echo "Setting up Trellis and Trellis.2..."
+mkdir -p models
+cd models
+
+if [ ! -d "TRELLIS" ]; then
+    echo "Cloning TRELLIS (original)..."
+    git clone --recurse-submodules https://github.com/microsoft/TRELLIS.git
+    cd TRELLIS
+    pip install -r requirements-torch.txt
+    pip install -r requirements-other.txt
+    cd ..
+else
+    echo "TRELLIS already cloned."
+fi
+
+if [ ! -d "TRELLIS.2" ]; then
+    echo "Cloning TRELLIS.2..."
+    git clone --recurse-submodules https://github.com/microsoft/TRELLIS.2.git
+    # Requirements logic varies, checking if setup.sh/requirements exist and executing
+    cd TRELLIS.2
+    if [ -f "requirements.txt" ]; then
+        pip install -r requirements.txt
+    fi
+    cd ..
+else
+    echo "TRELLIS.2 already cloned."
+fi
+cd ..
+
 echo "Setup complete. You can now start the API with 'make start'."
