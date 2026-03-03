@@ -95,9 +95,13 @@ pip install spconv-cu${CUDA_MAJOR}0 2>/dev/null \
     || pip install spconv 2>/dev/null \
     || echo "Warning: spconv install failed."
 
-# --- kaolin ---
+# --- kaolin (must use NVIDIA's prebuilt wheels, NOT PyPI placeholder) ---
 echo "Installing kaolin..."
-pip install kaolin 2>/dev/null || echo "Warning: kaolin install failed (no prebuilt wheel for this PyTorch/CUDA version)."
+TORCH_VER=$(python -c "import torch; print(torch.__version__.split('+')[0])")
+CUDA_VER=$(python -c "import torch; print('cu' + torch.version.cuda.replace('.', ''))")
+echo "  Detected PyTorch ${TORCH_VER}, CUDA ${CUDA_VER}"
+pip install kaolin==0.18.0 -f "https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-${TORCH_VER}_${CUDA_VER}.html" \
+    || echo "Warning: kaolin install failed. Check PyTorch/CUDA compatibility at https://kaolin.readthedocs.io/en/latest/notes/installation.html"
 
 # --- TRELLIS.2 specific extensions (need --no-build-isolation) ---
 echo "Installing TRELLIS.2 extensions..."
