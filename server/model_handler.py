@@ -1,6 +1,9 @@
 import logging
 import sys
 import os
+import base64
+import io
+import tempfile
 from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -31,10 +34,9 @@ class ModelHandler:
                     sys.path.append(trellis_path)
                 
                 try:
+                    os.environ.setdefault('SPCONV_ALGO', 'native')
                     from trellis.pipelines import TrellisImageTo3DPipeline
-                    # Assuming default model loading params here; adjust as per real requirements
-                    pipeline = TrellisImageTo3DPipeline.from_pretrained("JeffreyXiang/TRELLIS-image-large")
-                    # Move to GPU if requested
+                    pipeline = TrellisImageTo3DPipeline.from_pretrained("microsoft/TRELLIS-image-large")
                     if parameters.get("use_gpu", True):
                         pipeline.cuda()
                     self.models[model_id] = pipeline
@@ -50,10 +52,10 @@ class ModelHandler:
                     sys.path.append(trellis2_path)
                 
                 try:
-                     # This is a hypothetical pipeline import based on typical MS repositories
-                     # Adjust to actual TRELLIS.2 module structure if differnt
+                    os.environ.setdefault('OPENCV_IO_ENABLE_OPENEXR', '1')
+                    os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', 'expandable_segments:True')
                     from trellis2.pipelines import Trellis2ImageTo3DPipeline
-                    pipeline = Trellis2ImageTo3DPipeline.from_pretrained("microsoft/trellis-2-large")
+                    pipeline = Trellis2ImageTo3DPipeline.from_pretrained("microsoft/TRELLIS.2-4B")
                     if parameters.get("use_gpu", True):
                         pipeline.cuda()
                     self.models[model_id] = pipeline
@@ -107,26 +109,79 @@ class ModelHandler:
     def _mock_3d_generation(self, inputs: Dict[str, Any], parameters: Dict[str, Any]):
         return {"mesh_data": "base64_encoded_gltf_mock_data"}
 
+    def _decode_image(self, image_input: str) -> "Image.Image":
+        """Decode a base64-encoded image string into a PIL Image."""
+        from PIL import Image as PILImage
+        img_bytes = base64.b64decode(image_input)
+        return PILImage.open(io.BytesIO(img_bytes))
+
     def _trellis_inference(self, inputs: Dict[str, Any], parameters: Dict[str, Any]):
         pipeline = self.models["trellis"]
-        # Example interface: requires an image input (PIL Image or path)
         image_input = inputs.get("image")
         if not image_input:
             raise ValueError("Trellis inference requires an 'image' input.")
-        
-        # Hypothetical inference call; adapt to true pipeline signature
-        outputs = pipeline(image_input, **parameters)
-        
-        # In a real API, the resulting 3D object (e.g., a trimesh or raw gaussian data) 
-        # needs to be serialized into base64 or saved and served via URL.
-        # This is a placeholder payload back to the client
-        return {"mesh_data": "base64_encoded_real_trellis_output"}
+
+        image = self._decode_image(image_input)
+
+        # Run the pipeline (see: TRELLIS/example.py)
+        seed = parameters.pop("seed", 1)
+        outputs = pipeline.run(
+            image,
+            seed=seed,
+            **parameters,
+        )
+        # outputs keys: 'gaussian', 'radiance_field', 'mesh' (each a list)
+
+        # Export to GLB and serialize as base64
+        from trellis.utils import postprocessing_utils
+        glb = postprocessing_utils.to_glb(
+            outputs['gaussian'][0],
+            outputs['mesh'][0],
+            simplify=parameters.get("simplify", 0.95),
+            texture_size=parameters.get("texture_size", 1024),
+        )
+        with tempfile.NamedTemporaryFile(suffix=".glb", delete=False) as tmp:
+            glb.export(tmp.name)
+            tmp.seek(0)
+            glb_bytes = open(tmp.name, "rb").read()
+        os.unlink(tmp.name)
+
+        return {"glb_base64": base64.b64encode(glb_bytes).decode("utf-8")}
 
     def _trellis2_inference(self, inputs: Dict[str, Any], parameters: Dict[str, Any]):
         pipeline = self.models["trellis2"]
         image_input = inputs.get("image")
         if not image_input:
             raise ValueError("Trellis 2 inference requires an 'image' input.")
-        
-        outputs = pipeline(image_input, **parameters)
-        return {"mesh_data": "base64_encoded_real_trellis2_output"}
+
+        image = self._decode_image(image_input)
+
+        # Run the pipeline (see: TRELLIS.2/example.py)
+        meshes = pipeline.run(image)
+        mesh = meshes[0]
+        mesh.simplify(parameters.get("max_triangles", 16777216))  # nvdiffrast limit
+
+        # Export to GLB via o_voxel and serialize as base64
+        import o_voxel
+        glb = o_voxel.postprocess.to_glb(
+            vertices=mesh.vertices,
+            faces=mesh.faces,
+            attr_volume=mesh.attrs,
+            coords=mesh.coords,
+            attr_layout=mesh.layout,
+            voxel_size=mesh.voxel_size,
+            aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
+            decimation_target=parameters.get("decimation_target", 1000000),
+            texture_size=parameters.get("texture_size", 4096),
+            remesh=parameters.get("remesh", True),
+            remesh_band=parameters.get("remesh_band", 1),
+            remesh_project=parameters.get("remesh_project", 0),
+            verbose=True,
+        )
+        with tempfile.NamedTemporaryFile(suffix=".glb", delete=False) as tmp:
+            glb.export(tmp.name, extension_webp=True)
+            tmp.seek(0)
+            glb_bytes = open(tmp.name, "rb").read()
+        os.unlink(tmp.name)
+
+        return {"glb_base64": base64.b64encode(glb_bytes).decode("utf-8")}
