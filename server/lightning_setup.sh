@@ -55,15 +55,21 @@ pip install kornia timm gradio tensorboard pandas lpips zstandard
 sudo apt install -y libjpeg-dev 2>/dev/null || echo "Warning: Could not install libjpeg-dev. Skipping pillow-simd."
 pip install pillow-simd 2>/dev/null || echo "Warning: pillow-simd install failed. Using regular pillow."
 
-# --- xformers ---
-# Skipped: PyTorch 2.8 has built-in SDPA (Scaled Dot Product Attention)
-# which serves as a drop-in replacement. No need for xformers.
-echo "Skipping xformers (PyTorch 2.8+ has built-in SDPA attention)."
+# --- Attention backend (GPU-dependent: flash-attn for Ampere+, xformers for older) ---
+echo "Detecting GPU compute capability..."
+GPU_CC=$(python -c "import torch; print(torch.cuda.get_device_capability()[0])" 2>/dev/null || echo "0")
+echo "  GPU compute capability major version: ${GPU_CC}"
 
-# --- flash-attn (prebuilt wheel — pip build fails with cross-device link error on Lightning) ---
-echo "Installing flash-attn..."
-pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl \
-    || echo "Warning: flash-attn install failed. SDPA will be used as fallback."
+if [ "$GPU_CC" -ge 8 ]; then
+    echo "  Ampere+ GPU detected (sm_8x+). Installing flash-attn..."
+    pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl \
+        || echo "Warning: flash-attn install failed. Will fall back to xformers."
+    # Also install xformers as a fallback
+    pip install xformers 2>/dev/null || true
+else
+    echo "  Pre-Ampere GPU detected (sm_${GPU_CC}x). Installing xformers..."
+    pip install xformers || echo "Warning: xformers install failed."
+fi
 
 # --- nvdiffrast (needs --no-build-isolation) ---
 echo "Installing nvdiffrast..."

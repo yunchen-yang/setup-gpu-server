@@ -35,6 +35,13 @@ class ModelHandler:
                 
                 try:
                     os.environ.setdefault('SPCONV_ALGO', 'native')
+                    # Auto-select attention backend based on GPU architecture
+                    if 'ATTN_BACKEND' not in os.environ:
+                        import torch
+                        cc_major = torch.cuda.get_device_capability()[0] if torch.cuda.is_available() else 0
+                        backend = 'flash_attn' if cc_major >= 8 else 'xformers'
+                        os.environ['ATTN_BACKEND'] = backend
+                        logger.info(f"GPU compute capability {cc_major}.x → using attention backend: {backend}")
                     from trellis.pipelines import TrellisImageTo3DPipeline
                     pipeline = TrellisImageTo3DPipeline.from_pretrained("microsoft/TRELLIS-image-large")
                     if parameters.get("use_gpu", True):
