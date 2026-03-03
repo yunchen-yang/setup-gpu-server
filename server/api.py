@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()  # loads .env in the server/ directory (e.g. HF_TOKEN)
 import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
