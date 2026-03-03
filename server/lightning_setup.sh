@@ -64,11 +64,11 @@ if [ "$GPU_CC" -ge 8 ]; then
     echo "  Ampere+ GPU detected (sm_8x+). Installing flash-attn..."
     pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl \
         || echo "Warning: flash-attn install failed. Will fall back to xformers."
-    # Also install xformers as a fallback
-    pip install xformers 2>/dev/null || true
+    # Also install xformers as a fallback (--no-deps to avoid upgrading torch)
+    pip install xformers --no-deps 2>/dev/null || true
 else
     echo "  Pre-Ampere GPU detected (sm_${GPU_CC}x). Installing xformers..."
-    pip install xformers || echo "Warning: xformers install failed."
+    pip install xformers --no-deps || echo "Warning: xformers install failed."
 fi
 
 # --- nvdiffrast (needs --no-build-isolation) ---
