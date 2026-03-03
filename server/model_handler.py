@@ -26,7 +26,7 @@ class ModelHandler:
             # Application-specific model initialization
             if model_id == "trellis":
                 # Ensure the repository is in the Python path
-                trellis_path = os.path.abspath(os.path.join(os.path.dirname(__(__file__)), "models", "TRELLIS"))
+                trellis_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "models", "TRELLIS"))
                 if trellis_path not in sys.path:
                     sys.path.append(trellis_path)
                 
@@ -45,7 +45,7 @@ class ModelHandler:
 
             elif model_id == "trellis2":
                  # Ensure the repository is in the Python path
-                trellis2_path = os.path.abspath(os.path.join(os.path.dirname(__(__file__)), "models", "TRELLIS.2"))
+                trellis2_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "models", "TRELLIS.2"))
                 if trellis2_path not in sys.path:
                     sys.path.append(trellis2_path)
                 
