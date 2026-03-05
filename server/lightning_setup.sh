@@ -17,16 +17,9 @@ pip install -r requirements.txt
 # Clone TRELLIS repos
 # -------------------------------------------------------
 echo ""
-echo "=== Setting up TRELLIS and TRELLIS.2 ==="
+echo "=== Setting up TRELLIS.2 ==="
 mkdir -p models
 cd models
-
-if [ ! -d "TRELLIS" ]; then
-    echo "Cloning TRELLIS..."
-    git clone --recurse-submodules https://github.com/microsoft/TRELLIS.git
-else
-    echo "TRELLIS already cloned."
-fi
 
 if [ ! -d "TRELLIS.2" ]; then
     echo "Cloning TRELLIS.2..."
@@ -42,15 +35,12 @@ fi
 echo ""
 echo "=== Installing TRELLIS dependencies manually ==="
 
-# --- Basic dependencies (from TRELLIS --basic) ---
-echo "Installing basic dependencies..."
+# --- Basic dependencies for TRELLIS.2 ---
+echo "Installing TRELLIS.2 basic dependencies..."
 pip install pillow imageio imageio-ffmpeg tqdm easydict opencv-python-headless \
     scipy ninja rembg onnxruntime trimesh open3d xatlas pyvista pymeshfix \
-    igraph transformers
+    igraph transformers==4.57.6
 pip install git+https://github.com/EasternJournalist/utils3d.git@9a4eb15e4021b67b12c460c7057d642626897ec8
-
-# --- Additional basic deps from TRELLIS.2 --basic ---
-echo "Installing TRELLIS.2 basic dependencies..."
 pip install kornia timm gradio tensorboard pandas lpips zstandard
 sudo apt install -y libjpeg-dev 2>/dev/null || echo "Warning: Could not install libjpeg-dev. Skipping pillow-simd."
 pip install pillow-simd 2>/dev/null || echo "Warning: pillow-simd install failed. Using regular pillow."
@@ -77,37 +67,6 @@ if [ ! -d "/tmp/extensions/nvdiffrast" ]; then
     git clone https://github.com/NVlabs/nvdiffrast.git /tmp/extensions/nvdiffrast
 fi
 pip install /tmp/extensions/nvdiffrast --no-build-isolation || echo "Warning: nvdiffrast install failed."
-
-# --- diffoctreerast (needs --no-build-isolation) ---
-echo "Installing diffoctreerast..."
-if [ ! -d "/tmp/extensions/diffoctreerast" ]; then
-    git clone --recurse-submodules https://github.com/JeffreyXiang/diffoctreerast.git /tmp/extensions/diffoctreerast
-fi
-pip install /tmp/extensions/diffoctreerast --no-build-isolation || echo "Warning: diffoctreerast install failed."
-
-# --- vox2seq (from TRELLIS repo's extensions/ dir) ---
-echo "Installing vox2seq..."
-if [ -d "TRELLIS/extensions/vox2seq" ]; then
-    cp -r TRELLIS/extensions/vox2seq /tmp/extensions/vox2seq 2>/dev/null || true
-    pip install /tmp/extensions/vox2seq --no-build-isolation || echo "Warning: vox2seq install failed."
-else
-    echo "Warning: TRELLIS/extensions/vox2seq not found. Skipping."
-fi
-
-# --- spconv ---
-echo "Installing spconv..."
-CUDA_MAJOR=$(python -c "import torch; print(torch.version.cuda.split('.')[0])")
-pip install spconv-cu${CUDA_MAJOR}0 2>/dev/null \
-    || pip install spconv 2>/dev/null \
-    || echo "Warning: spconv install failed."
-
-# --- kaolin (must use NVIDIA's prebuilt wheels, NOT PyPI placeholder) ---
-echo "Installing kaolin..."
-TORCH_VER=$(python -c "import torch; print(torch.__version__.split('+')[0])")
-CUDA_VER=$(python -c "import torch; print('cu' + torch.version.cuda.replace('.', ''))")
-echo "  Detected PyTorch ${TORCH_VER}, CUDA ${CUDA_VER}"
-pip install kaolin==0.18.0 -f "https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-${TORCH_VER}_${CUDA_VER}.html" \
-    || echo "Warning: kaolin install failed. Check PyTorch/CUDA compatibility at https://kaolin.readthedocs.io/en/latest/notes/installation.html"
 
 # --- TRELLIS.2 specific extensions (need --no-build-isolation) ---
 echo "Installing TRELLIS.2 extensions..."

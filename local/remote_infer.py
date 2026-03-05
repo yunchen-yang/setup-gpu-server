@@ -41,7 +41,7 @@ def remote_infer(model_id: str, task_type: str = "generic", port: int = DEFAULT_
             logger.info(f"Routing call for '{func.__name__}' -> {url} (model: {model_id})")
             try:
                 # Add a timeout to fail fast if the tunnel or server is unresponsive
-                response = requests.post(url, json=payload, timeout=60)
+                response = requests.post(url, json=payload, timeout=600)
                 response.raise_for_status()
             except requests.exceptions.ConnectionError:
                 logger.error(f"Connection failed. Is the SSH tunnel active on port {port}? Did you run ssh_connect.bat?")

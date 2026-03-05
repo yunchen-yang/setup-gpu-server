@@ -12,7 +12,7 @@ class ModelHandler:
     """
     Generic wrapper for handling different model inferences.
     This can be extended to dynamically load specialized plugins
-    for Ollama, Trellis, etc.
+    for Ollama, Trellis 2, etc.
     """
     def __init__(self):
         # A dictionary to hold loaded models or model interfaces.
@@ -27,32 +27,7 @@ class ModelHandler:
             logger.info(f"Loading model: {model_id} with parameters: {parameters}")
             
             # Application-specific model initialization
-            if model_id == "trellis":
-                # Ensure the repository is in the Python path
-                trellis_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "models", "TRELLIS"))
-                if trellis_path not in sys.path:
-                    sys.path.append(trellis_path)
-                
-                try:
-                    os.environ.setdefault('SPCONV_ALGO', 'native')
-                    # Auto-select attention backend based on GPU architecture
-                    if 'ATTN_BACKEND' not in os.environ:
-                        import torch
-                        cc_major = torch.cuda.get_device_capability()[0] if torch.cuda.is_available() else 0
-                        backend = 'flash_attn' if cc_major >= 8 else 'xformers'
-                        os.environ['ATTN_BACKEND'] = backend
-                        logger.info(f"GPU compute capability {cc_major}.x → using attention backend: {backend}")
-                    from trellis.pipelines import TrellisImageTo3DPipeline
-                    pipeline = TrellisImageTo3DPipeline.from_pretrained("microsoft/TRELLIS-image-large")
-                    if parameters.get("use_gpu", True):
-                        pipeline.cuda()
-                    self.models[model_id] = pipeline
-                    logger.info("Trellis model loaded successfully.")
-                except ImportError as e:
-                    logger.error(f"Failed to import Trellis pipeline: {e}")
-                    raise RuntimeError(f"Trellis dependencies are missing: {e}")
-
-            elif model_id == "trellis2":
+            if model_id == "trellis2":
                  # Ensure the repository is in the Python path
                 trellis2_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "models", "TRELLIS.2"))
                 if trellis2_path not in sys.path:
@@ -93,9 +68,7 @@ class ModelHandler:
             elif task_type == "image_generation":
                 return self._mock_image_generation(inputs, parameters)
             elif task_type == "3d_generation":
-                if model_id == "trellis":
-                    return self._trellis_inference(inputs, parameters)
-                elif model_id == "trellis2":
+                if model_id == "trellis2":
                     return self._trellis2_inference(inputs, parameters)
                 else:
                     return self._mock_3d_generation(inputs, parameters)
@@ -121,39 +94,6 @@ class ModelHandler:
         from PIL import Image as PILImage
         img_bytes = base64.b64decode(image_input)
         return PILImage.open(io.BytesIO(img_bytes))
-
-    def _trellis_inference(self, inputs: Dict[str, Any], parameters: Dict[str, Any]):
-        pipeline = self.models["trellis"]
-        image_input = inputs.get("image")
-        if not image_input:
-            raise ValueError("Trellis inference requires an 'image' input.")
-
-        image = self._decode_image(image_input)
-
-        # Run the pipeline (see: TRELLIS/example.py)
-        seed = parameters.pop("seed", 1)
-        outputs = pipeline.run(
-            image,
-            seed=seed,
-            **parameters,
-        )
-        # outputs keys: 'gaussian', 'radiance_field', 'mesh' (each a list)
-
-        # Export to GLB and serialize as base64
-        from trellis.utils import postprocessing_utils
-        glb = postprocessing_utils.to_glb(
-            outputs['gaussian'][0],
-            outputs['mesh'][0],
-            simplify=parameters.get("simplify", 0.95),
-            texture_size=parameters.get("texture_size", 1024),
-        )
-        with tempfile.NamedTemporaryFile(suffix=".glb", delete=False) as tmp:
-            glb.export(tmp.name)
-            tmp.seek(0)
-            glb_bytes = open(tmp.name, "rb").read()
-        os.unlink(tmp.name)
-
-        return {"glb_base64": base64.b64encode(glb_bytes).decode("utf-8")}
 
     def _trellis2_inference(self, inputs: Dict[str, Any], parameters: Dict[str, Any]):
         pipeline = self.models["trellis2"]

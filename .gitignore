@@ -197,3 +197,6 @@ cython_debug/
 
 # AI IDE related:
 .agent/
+
+# Notebooks
+notebooks/
